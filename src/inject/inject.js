@@ -1,15 +1,31 @@
 
-var userDefinedCode = '';
+var formulas;
 chrome.storage.sync.get('formulas', function(result) {
-    var formulas = result.formulas;
-    if(formulas) {
-        formulas.forEach(function(formula) {
-            userDefinedCode += 'mapInfo["' + formula.name + '"] = ' + formula.actualFormula + ';';
-        });
-    }
+    formulas = result.formulas;
 });
 
+function runUserDefinedCode(formulas, mapInfo) {
+    if(!formulas) return;
+    var userDefinedCode = '',
+        minIndex = 0,
+        maxIndex = 0;
 
+    for(var i = 0; i < formulas.length; i++) {
+        var formula = formulas[i];
+        mapInfo[formula.name] = 0;
+        minIndex = Math.min(minIndex, Number(formula.index));
+        maxIndex = Math.max(maxIndex, Number(formula.index));
+    }
+
+    formulas.sort(function(a,b){return(a.index > b.index);});
+    formulas.forEach(function(formula) {
+        userDefinedCode += 'mapInfo["' + formula.name + '"] = ' + formula.actualFormula + ';';
+    });
+
+    eval(userDefinedCode);
+    return(mapInfo);
+
+}
 
 
 
@@ -256,7 +272,7 @@ if(document.URL.search('http://unfortunate-maps.jukejuice.com/editor') >= 0 ) {
         }
 
 
-        eval(userDefinedCode);
+        mapInfo = runUserDefinedCode(formulas, mapInfo);
 
 
         var textStyle = 'padding-left: 3px; padding-right: 3px; text-align: left; color: white; font: 14px \"Lucida Grande\", Helvetica, Arial, sans-serif';
@@ -515,7 +531,7 @@ if(document.URL.search('http://unfortunate-maps.jukejuice.com/editor') >= 0 ) {
             mapInfo["Shortest Path Between Flags"] = result.length;
         }
         
-        eval(userDefinedCode);
+        mapInfo = runUserDefinedCode(formulas, mapInfo);
 
         return mapInfo;
     }
@@ -599,7 +615,7 @@ if(document.URL.search('http://unfortunate-maps.jukejuice.com/editor') >= 0 ) {
     }
 
     listen('ready', function () {
-        emit('userCode', userDefinedCode);
+        emit('userCode', formulas);
     });
 
     chrome.runtime.sendMessage({type: 'view'}, function(response) {console.log(response.message);});
@@ -618,7 +634,6 @@ if(document.URL.search('http://unfortunate-maps.jukejuice.com/editor') >= 0 ) {
 
 
     var scripts = [ 
-        "lib/jquery.min.js",
         "lib/jquery-ui.min.js",
         "lib/FileSaver.min.js",
         "lib/astar.js",

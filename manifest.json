@@ -48,6 +48,7 @@
     "lib/jquery.min.js",
     "lib/jquery-ui.min.js",
     "lib/FileSaver.min.js",
-    "lib/astar.js"
+    "lib/astar.js",
+    "jquery.classywiggle.min.js"
   ]
 }

@@ -1,7 +1,7 @@
 
 
 var vars = ["Map Width","Map Height","Total Area","Adjusted Area" ,"Shortest Path Between Flags","Percent Not Empty" ,"Empty Spaces","Walls","Walls (Square)","Walls (Diagonal)","Floor Tiles","Floor Tiles % of Interior","Flags (Red)","Flags (Blue)","Flags (Yellow)","Speed Pads (Total)","Speed Pads (Neutral)","Speed Pads (Red)","Speed Pads (Blue)","Power-Ups","Spikes","Buttons","Gates (Inactive)" ,"Gates (Green)" ,"Gates (Red)" ,"Gates (Blue)" ,"Bombs" ,"Team Tiles (Red)" ,"Team Tiles (Blue)" ,"Portals" ,"Goal Tiles (Red)" ,"Goal Tiles (Blue)" ,"Gravity Wells"],
-    defaultTable = document.getElementById("defaultMetrics").children[0],
+    defaultTable = $("#defaultMetrics tbody")[0],
     index = 0;
 vars.forEach(function(e) {
     var tr = document.createElement('tr'),
@@ -16,30 +16,73 @@ vars.forEach(function(e) {
     defaultTable.appendChild(tr);
 });
 
-var userTable = document.getElementById('userMetrics'),
+var userTable = $('#userMetrics tbody')[0],
     formulaInput = document.getElementById('formulaInput'),
     nameInput = document.getElementById('nameInput'),
     storedFormulas = [],
-    numDefaultMetrics = document.getElementById('defaultMetrics').children[0].children.length - 1;
+    numDefaultMetrics = defaultTable.children.length;
 
 
 function removeFormula() {
     var thisTr = this;
-    chrome.storage.sync.get("formulas", function(result) {
-        var formulas = result.formulas,
-            thisId = thisTr.closest('tr').children[0].innerHTML;
-        for(var i = 0; i < formulas.length; i++) {
-            console.log(thisId, formulas[i]);
-            if(formulas[i].index === thisId) {
-                formulas.splice(i, 1);
-                chrome.storage.sync.set({formulas: formulas}, function() {
-                    window.location.href = "page_action.html";
-                });
+    if(confirm("Are you sure you want to delete this formula?\nAll formulae that reference this formula will be broken!")) {
+        chrome.storage.sync.get("formulas", function(result) {
+            var formulas = result.formulas,
+                thisId = thisTr.closest('tr').children[0].innerHTML;
+            for(var i = 0; i < formulas.length; i++) {
+                console.log(thisId, formulas[i]);
+                if(formulas[i].index === thisId) {
+                    formulas.splice(i, 1);
+                    chrome.storage.sync.set({formulas: formulas}, function() {
+                        window.location.href = "page_action.html";
+                    });
+                }
             }
-        }
-
-    });
+        });
+    }
 }
+
+function saveAllUserFormulae() {
+    var formulae = [],
+        trs = $('#userMetrics tbody tr');
+    for(var i = 0; i < trs.length; i++) {
+        formulae.push({
+            index: trs[i].children[0].innerHTML,
+            name: trs[i].children[1].innerHTML,
+            formula: trs[i].children[2].innerHTML,
+            actualFormula: trs[i].children[2].actualFormula
+        });
+    }
+    chrome.storage.sync.set({formulas: formulae});
+}
+
+function toggleRearrangeFormulae() {
+    if($('#userMetrics tbody').hasClass('ui-sortable') && !$('#userMetrics tbody').sortable('option','disabled')) {
+        this.textContent = 'Rearrange Formulae';
+        $('#userMetrics td').css('cursor', 'auto');
+        $('#userMetrics tbody').sortable('disable');
+        $('#userMetrics tbody tr').ClassyWiggle('stop');
+        saveAllUserFormulae();
+
+    } else {
+        this.textContent = 'Save Formulae Positions';
+        if(!$('#userMetrics tbody').hasClass('ui-sortable')) {
+            $('#userMetrics tbody').sortable({
+                axis:'y',
+                cursor: 'move'
+            });
+        } else {
+            $('#userMetrics tbody').sortable('enable');
+        }
+        $('#userMetrics tbody tr').ClassyWiggle('start', {
+            degrees:['-0.25', '-0.5', '-0.25', '0', '0.25', '0.5', '0.25', '0'], 
+            delay:35
+        });
+        $('#userMetrics td').css('cursor', 'move');
+    }
+}
+$('#moveButton').click(toggleRearrangeFormulae);
+
 
 chrome.storage.sync.get("formulas", function(result) {
     storedFormulas = result.formulas;
@@ -56,10 +99,9 @@ chrome.storage.sync.get("formulas", function(result) {
             name.innerHTML = d.name;
             name.id  = 'field' + d.index;
             formula.innerHTML = d.formula;
-            console.log(d.actualFormula);
             formula.actualFormula = d.actualFormula;
             [index, name, formula, remove].forEach(function(i){newRow.appendChild(i);});
-            userTable.children[0].appendChild(newRow);
+            userTable.appendChild(newRow);
         });
     } else {
         storedFormulas = [];
@@ -98,8 +140,16 @@ document.getElementById('saveButton').addEventListener('click', function() {
         actualEquation = actualEquation.replace( match.value, 'mapInfo["' + matchedField.innerHTML + '"]');
     });
 
-    var entries = userTable.children[0].children,
-        lastIndex = (!entries.length || entries.length <= 1) ? numDefaultMetrics : entries[entries.length - 1].children[0].innerHTML;
+    var entries = userTable.children,
+        lastIndex = 0;
+
+    if( !entries.length || entries.length < 1) {
+        lastIndex = numDefaultMetrics;
+    } else {
+        for(var i = 0; i < entries.length; i++) {
+            lastIndex = Math.max(Number(entries[i].children[0].innerHTML), lastIndex);
+        }
+    }
     index.innerHTML = +lastIndex + 1;
     name.innerHTML = inputtedName;
     name.id = 'field' + index.innerHTML;
@@ -108,7 +158,7 @@ document.getElementById('saveButton').addEventListener('click', function() {
     remove.textContent = 'Remove';
     remove.onclick = removeFormula;
     [index, name, formula, remove].forEach(function(i){newRow.appendChild(i);});
-    userTable.children[0].appendChild(newRow);
+    userTable.appendChild(newRow);
 
 
     nameInput.value = '';
@@ -123,10 +173,11 @@ document.getElementById('saveButton').addEventListener('click', function() {
 });
 
 document.getElementById('reset').addEventListener('click', function(){
-
-    chrome.storage.sync.clear(function(){
-        window.location.href = "page_action.html";
-    });
+    if(confirm('Are you sure you want to delete all your formulae?\nThis cannot be undone.')) {
+        chrome.storage.sync.clear(function(){
+            window.location.href = "page_action.html";
+        });
+    }
 });
 
 

@@ -23,9 +23,10 @@ $(document).ready(function() {
         var userDefinedCode = '',
             minIndex = 0,
             maxIndex = 0,
-            allChecks = defaultChecks;
+            allChecks = defaultChecks,
+            formulasCopy = formulas.slice();
 
-        for(var i = 0; i < formulas.length; i++) {
+        for(var i = 0; i < formulasCopy.length; i++) {
             var formula = formulas[i];
             mapInfo[formula.name] = 0;
             minIndex = Math.min(minIndex, Number(formula.index));
@@ -33,8 +34,8 @@ $(document).ready(function() {
             allChecks.push(formula.dontDisplay);
         }
 
-        formulas.sort(function(a,b){return(a.index > b.index);});
-        formulas.forEach(function(formula) {
+        formulasCopy.sort(function(a,b){return(a.index > b.index);});
+        formulasCopy.forEach(function(formula) {
             userDefinedCode += 'mapInfo["' + formula.name + '"] = ' + formula.actualFormula + ';';
         });
 

@@ -3,17 +3,41 @@
 var vars = ["Map Width","Map Height","Total Area","Adjusted Area" ,"Shortest Path Between Flags","Percent Not Empty" ,"Empty Spaces","Walls","Walls (Square)","Walls (Diagonal)","Floor Tiles","Floor Tiles % of Interior","Flags (Red)","Flags (Blue)","Flags (Yellow)","Speed Pads (Total)","Speed Pads (Neutral)","Speed Pads (Red)","Speed Pads (Blue)","Power-Ups","Spikes","Buttons","Gates (Inactive)" ,"Gates (Green)" ,"Gates (Red)" ,"Gates (Blue)" ,"Bombs" ,"Team Tiles (Red)" ,"Team Tiles (Blue)" ,"Portals" ,"Goal Tiles (Red)" ,"Goal Tiles (Blue)" ,"Gravity Wells"],
     defaultTable = $("#defaultMetrics tbody")[0],
     index = 0;
+
+function updateDefaultChecks() {
+    var allCBs = $('#defaultMetrics').find(':checkbox'),
+        checkStatuses = [];
+    for(var i = 0; i < allCBs.length; i++) {
+        checkStatuses.push(allCBs[i].checked);
+    }
+    chrome.storage.sync.set({defaultChecks: checkStatuses});
+}
+
 vars.forEach(function(e) {
     var tr = document.createElement('tr'),
         indexTd = document.createElement('td'),
-        nameTd = document.createElement('td');
+        nameTd = document.createElement('td'),
+        displayTd = $('<td style="text-align: center;">')[0],
+        displayCB = $('<input type="checkbox">')[0];
 
     index += 1;
     indexTd.innerHTML = index;
     nameTd.id = 'field' + index;
     nameTd.innerHTML = e;
-    [indexTd, nameTd].forEach(function(i) {tr.appendChild(i);});
+    displayCB.onclick = updateDefaultChecks;
+    displayTd.appendChild(displayCB);
+    [indexTd, nameTd, displayTd].forEach(function(i) {tr.appendChild(i);});
     defaultTable.appendChild(tr);
+});
+
+chrome.storage.sync.get('defaultChecks', function(result) {
+    var checks = result.defaultChecks,
+        checkboxes = $('#defaultMetrics').find(':checkbox');
+    if(checks) {
+        for(var i = 0; i < checks.length; i++) {
+            checkboxes[i].checked = checks[i];
+        }
+    }
 });
 
 var userTable = $('#userMetrics tbody')[0],
@@ -50,7 +74,8 @@ function saveAllUserFormulae() {
             index: trs[i].children[0].innerHTML,
             name: trs[i].children[1].innerHTML,
             formula: trs[i].children[2].innerHTML,
-            actualFormula: trs[i].children[2].actualFormula
+            actualFormula: trs[i].children[2].actualFormula,
+            dontDisplay: $(trs[i]).find(':checkbox')[0].checked
         });
     }
     chrome.storage.sync.set({formulas: formulae});
@@ -92,7 +117,12 @@ chrome.storage.sync.get("formulas", function(result) {
                 index = document.createElement('td'),
                 name = document.createElement('td'),
                 formula = document.createElement('td'),
-                remove = document.createElement('button');
+                remove = document.createElement('button'),
+                displayTd = $('<td style="text-align: center;">')[0],
+                displayCB = $('<input type="checkbox">')[0];
+            displayCB.onclick = saveAllUserFormulae;
+            displayCB.checked = d.dontDisplay;
+            displayTd.appendChild(displayCB);
             remove.textContent = 'Remove';
             remove.onclick = removeFormula;
             index.innerHTML = d.index;
@@ -100,7 +130,7 @@ chrome.storage.sync.get("formulas", function(result) {
             name.id  = 'field' + d.index;
             formula.innerHTML = d.formula;
             formula.actualFormula = d.actualFormula;
-            [index, name, formula, remove].forEach(function(i){newRow.appendChild(i);});
+            [index, name, formula, displayTd, remove].forEach(function(i){newRow.appendChild(i);});
             userTable.appendChild(newRow);
         });
     } else {
@@ -116,6 +146,8 @@ document.getElementById('saveButton').addEventListener('click', function() {
         index = document.createElement('td'),
         newRow = document.createElement('tr'),
         remove = document.createElement('button'),
+        displayTd = $('<td style="text-align: center;">')[0],
+        displayCB = $('<input type="checkbox">')[0],
         inputtedName = nameInput.value,
         equation = formulaInput.value.replace(/[^\d \+\-\/\*\.\(\)\$]/g, ''),
         displayedEquation = equation,
@@ -157,7 +189,9 @@ document.getElementById('saveButton').addEventListener('click', function() {
     formula.actualFormula = actualEquation;
     remove.textContent = 'Remove';
     remove.onclick = removeFormula;
-    [index, name, formula, remove].forEach(function(i){newRow.appendChild(i);});
+    displayCB.onclick = saveAllUserFormulae;
+    displayTd.appendChild(displayCB);
+    [index, name, formula, displayTd, remove].forEach(function(i){newRow.appendChild(i);});
     userTable.appendChild(newRow);
 
 
@@ -166,7 +200,8 @@ document.getElementById('saveButton').addEventListener('click', function() {
     storedFormulas.push({index: index.innerHTML,
                          name: name.innerHTML,
                          formula: formula.innerHTML,
-                         actualFormula: actualEquation
+                         actualFormula: actualEquation,
+                         dontDisplay: displayCB.checked
                         });
     chrome.storage.sync.set({formulas: storedFormulas});
 

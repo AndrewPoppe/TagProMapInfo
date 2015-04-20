@@ -1,20 +1,30 @@
 
-var formulas;
-chrome.storage.sync.get('formulas', function(result) {
+var formulas,
+    defaultChecks;
+chrome.storage.sync.get(['formulas', 'defaultChecks'], function(result) {
     formulas = result.formulas;
+    defaultChecks = result.defaultChecks;
 });
 
-function runUserDefinedCode(formulas, mapInfo) {
-    if(!formulas) return;
+function runUserDefinedCode(formulas, defaultChecks, mapInfo) {
+    if(!formulas) formulas = [];
+    if(!defaultChecks) {
+        defaultChecks = [];
+        for(var check = 0; check < mapInfo.length; check++) {
+            defaultChecks.push(false);
+        }
+    }
     var userDefinedCode = '',
         minIndex = 0,
-        maxIndex = 0;
+        maxIndex = 0,
+        allChecks = defaultChecks;
 
     for(var i = 0; i < formulas.length; i++) {
         var formula = formulas[i];
         mapInfo[formula.name] = 0;
         minIndex = Math.min(minIndex, Number(formula.index));
         maxIndex = Math.max(maxIndex, Number(formula.index));
+        allChecks.push(formula.dontDisplay);
     }
 
     formulas.sort(function(a,b){return(a.index > b.index);});
@@ -23,6 +33,16 @@ function runUserDefinedCode(formulas, mapInfo) {
     });
 
     eval(userDefinedCode);
+
+
+    // get rid of things we don't want to be displayed
+    var mapInfoKeys = Object.keys(mapInfo);
+    for(var j = allChecks.length; j > 0; j--) {
+        if(allChecks[j-1]) {
+            delete(mapInfo[mapInfoKeys[j-1]]);
+        }
+    }
+    
     return(mapInfo);
 
 }
@@ -272,7 +292,7 @@ if(document.URL.search('http://unfortunate-maps.jukejuice.com/editor') >= 0 ) {
         }
 
 
-        mapInfo = runUserDefinedCode(formulas, mapInfo);
+        mapInfo = runUserDefinedCode(formulas, defaultChecks, mapInfo);
 
 
         var textStyle = 'padding-left: 3px; padding-right: 3px; text-align: left; color: white; font: 14px \"Lucida Grande\", Helvetica, Arial, sans-serif';
@@ -531,7 +551,7 @@ if(document.URL.search('http://unfortunate-maps.jukejuice.com/editor') >= 0 ) {
             mapInfo["Shortest Path Between Flags"] = result.length;
         }
         
-        mapInfo = runUserDefinedCode(formulas, mapInfo);
+        mapInfo = runUserDefinedCode(formulas, defaultChecks, mapInfo);
 
         return mapInfo;
     }
@@ -615,7 +635,10 @@ if(document.URL.search('http://unfortunate-maps.jukejuice.com/editor') >= 0 ) {
     }
 
     listen('ready', function () {
-        emit('userCode', formulas);
+        var message = {formulas: formulas,
+                       defaultChecks: defaultChecks
+                      };
+        emit('userCode', message);
     });
 
     chrome.runtime.sendMessage({type: 'view'}, function(response) {console.log(response.message);});

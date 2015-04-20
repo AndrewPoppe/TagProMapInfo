@@ -12,17 +12,25 @@ $(document).ready(function() {
         });
     }
 
-    function runUserDefinedCode(formulas, mapInfo) {
-        if(!formulas) return;
+    function runUserDefinedCode(formulas, defaultChecks, mapInfo) {
+        if(!formulas) formulas = [];
+        if(!defaultChecks) {
+            defaultChecks = [];
+            for(var check = 0; check < mapInfo.length; check++) {
+                defaultChecks.push(false);
+            }
+        }
         var userDefinedCode = '',
             minIndex = 0,
-            maxIndex = 0;
+            maxIndex = 0,
+            allChecks = defaultChecks;
 
         for(var i = 0; i < formulas.length; i++) {
             var formula = formulas[i];
             mapInfo[formula.name] = 0;
             minIndex = Math.min(minIndex, Number(formula.index));
             maxIndex = Math.max(maxIndex, Number(formula.index));
+            allChecks.push(formula.dontDisplay);
         }
 
         formulas.sort(function(a,b){return(a.index > b.index);});
@@ -31,11 +39,23 @@ $(document).ready(function() {
         });
 
         eval(userDefinedCode);
+
+
+        // get rid of things we don't want to be displayed
+        var mapInfoKeys = Object.keys(mapInfo);
+        for(var j = allChecks.length; j > 0; j--) {
+            if(allChecks[j-1]) {
+                delete(mapInfo[mapInfoKeys[j-1]]);
+            }
+        }
+        
         return(mapInfo);
 
     }
 
-    listen('userCode', function(formulas) {
+    listen('userCode', function(message) {
+        formulas = message.formulas;
+        defaultChecks = message.defaultChecks;
 
         tagpro.ready( function() {
             tagpro.socket.on('map',function(e){
@@ -226,7 +246,7 @@ $(document).ready(function() {
                 }
 
 
-                mapInfo = runUserDefinedCode(formulas, mapInfo);
+                mapInfo = runUserDefinedCode(formulas, defaultChecks, mapInfo);
 
 
                 var mapInfoDiv = $('<div id=mapInfoDiv>');

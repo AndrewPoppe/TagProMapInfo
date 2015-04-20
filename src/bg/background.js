@@ -6,7 +6,6 @@ chrome.pageAction.onClicked.addListener(function(){
 });
 
 
-
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
 
